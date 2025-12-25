@@ -1,43 +1,37 @@
 let data = {
     title: "ارائه من",
-    cells: [
-        {
-            type: "text",
-            content: "این یک متن نمونه است.\nمی‌توانید آن را ویرایش کنید."
-        },
-        {
-            type: "code",
-            language: "python",
-            content: "def hello():\n    print('Hello, World!')"
-        }
-    ]
+    cells: []
 };
 
-function loadData() {
-    const saved = localStorage.getItem('presentationData');
-    if (saved) {
-        try {
-            data = JSON.parse(saved);
-        } catch (e) {
-            console.error('Error loading data:', e);
-        }
-    }
-}
-
-function saveData() {
+// بارگذاری داده‌ها از فایل JSON
+async function loadData() {
     try {
-        localStorage.setItem('presentationData', JSON.stringify(data));
+        const response = await fetch('data.json');
+        if (response.ok) {
+            data = await response.json();
+        }
     } catch (e) {
-        console.error('Error saving data:', e);
+        console.error('خطا در بارگذاری داده‌ها:', e);
+        // اگر فایل وجود نداشت، از داده پیش‌فرض استفاده کن
+        data = {
+            title: "ارائه من",
+            cells: [
+                {
+                    type: "text",
+                    content: "این یک متن نمونه است.\nمی‌توانید آن را ویرایش کنید."
+                },
+                {
+                    type: "code",
+                    language: "python",
+                    content: "def hello():\n    print('Hello, World!')"
+                }
+            ]
+        };
     }
+    renderView();
 }
 
-function escapeHtml(text) {
-    const div = document.createElement('div');
-    div.textContent = text;
-    return div.innerHTML;
-}
-
+// رندر حالت نمایش
 function renderView() {
     document.getElementById('presentationTitle').textContent = data.title;
     const contentView = document.getElementById('contentView');
@@ -71,6 +65,7 @@ function renderView() {
     });
 }
 
+// رندر حالت ویرایش
 function renderEdit() {
     document.getElementById('titleInput').value = data.title;
     const container = document.getElementById('cellsContainer');
@@ -137,6 +132,7 @@ function renderEdit() {
     });
 }
 
+// افزودن سلول متنی
 function addTextCell() {
     data.cells.push({
         type: 'text',
@@ -144,7 +140,6 @@ function addTextCell() {
     });
     renderEdit();
     
-    // اسکرول به سلول جدید
     setTimeout(() => {
         const container = document.getElementById('cellsContainer');
         const cells = container.querySelectorAll('.cell');
@@ -157,6 +152,7 @@ function addTextCell() {
     }, 100);
 }
 
+// افزودن سلول کد
 function addCodeCell() {
     data.cells.push({
         type: 'code',
@@ -165,7 +161,6 @@ function addCodeCell() {
     });
     renderEdit();
     
-    // اسکرول به سلول جدید
     setTimeout(() => {
         const container = document.getElementById('cellsContainer');
         const cells = container.querySelectorAll('.cell');
@@ -178,6 +173,7 @@ function addCodeCell() {
     }, 100);
 }
 
+// جابجایی سلول
 function moveCell(index, direction) {
     const newIndex = index + direction;
     if (newIndex >= 0 && newIndex < data.cells.length) {
@@ -186,6 +182,7 @@ function moveCell(index, direction) {
     }
 }
 
+// حذف سلول
 function deleteCell(index) {
     if (confirm('آیا مطمئن هستید که می‌خواهید این سلول را حذف کنید؟')) {
         data.cells.splice(index, 1);
@@ -193,6 +190,7 @@ function deleteCell(index) {
     }
 }
 
+// ورود به حالت ویرایش
 function enterEditMode() {
     const password = prompt('رمز عبور را وارد کنید:');
     if (password === '13820510') {
@@ -204,15 +202,27 @@ function enterEditMode() {
     }
 }
 
+// ذخیره تغییرات
 function saveChanges() {
     data.title = document.getElementById('titleInput').value;
-    saveData();
+    
+    // دانلود فایل JSON جدید
+    const dataStr = JSON.stringify(data, null, 2);
+    const dataBlob = new Blob([dataStr], { type: 'application/json' });
+    const url = URL.createObjectURL(dataBlob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = 'data.json';
+    link.click();
+    
+    alert('✅ تغییرات ذخیره شد!\n\nفایل data.json جدید دانلود شد.\nلطفاً آن را در مخزن GitHub خود آپلود کنید تا تغییرات در همه سیستم‌ها اعمال شود.');
+    
     document.getElementById('editMode').style.display = 'none';
     document.getElementById('viewMode').style.display = 'block';
     renderView();
-    alert('✅ تغییرات با موفقیت ذخیره شد!');
 }
 
+// انصراف از ویرایش
 function cancelEdit() {
     if (confirm('آیا می‌خواهید بدون ذخیره خارج شوید؟')) {
         loadData();
@@ -221,10 +231,19 @@ function cancelEdit() {
     }
 }
 
+// بارگذاری اولیه
 document.addEventListener('DOMContentLoaded', () => {
     loadData();
-    renderView();
     
-    document.getElementById('addTextBtn').addEventListener('click', addTextCell);
-    document.getElementById('addCodeBtn').addEventListener('click', addCodeCell);
+    // اتصال دکمه‌ها با تابع
+    const addTextBtn = document.getElementById('addTextBtn');
+    const addCodeBtn = document.getElementById('addCodeBtn');
+    
+    if (addTextBtn) {
+        addTextBtn.addEventListener('click', addTextCell);
+    }
+    
+    if (addCodeBtn) {
+        addCodeBtn.addEventListener('click', addCodeCell);
+    }
 });

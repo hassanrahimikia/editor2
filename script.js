@@ -1,34 +1,48 @@
+// پیکربندی Firebase - جایگزین کنید با اطلاعات پروژه خودتان
+const firebaseConfig = {
+    apiKey: "YOUR_API_KEY",
+    authDomain: "YOUR_PROJECT_ID.firebaseapp.com",
+    databaseURL: "https://YOUR_PROJECT_ID-default-rtdb.firebaseio.com",
+    projectId: "YOUR_PROJECT_ID",
+    storageBucket: "YOUR_PROJECT_ID.appspot.com",
+    messagingSenderId: "YOUR_SENDER_ID",
+    appId: "YOUR_APP_ID"
+};
+
+// راه‌اندازی Firebase
+firebase.initializeApp(firebaseConfig);
+const database = firebase.database();
+const dataRef = database.ref('presentation');
+
 let data = {
     title: "ارائه من",
     cells: []
 };
 
-// بارگذاری داده‌ها از فایل JSON
-async function loadData() {
-    try {
-        const response = await fetch('data.json');
-        if (response.ok) {
-            data = await response.json();
+// بارگذاری داده‌ها از Firebase
+function loadData() {
+    dataRef.once('value', (snapshot) => {
+        if (snapshot.exists()) {
+            data = snapshot.val();
+        } else {
+            data = {
+                title: "ارائه من",
+                cells: [
+                    {
+                        type: "text",
+                        content: "این یک متن نمونه است.\nمی‌توانید آن را ویرایش کنید."
+                    },
+                    {
+                        type: "code",
+                        language: "python",
+                        content: "def hello():\n    print('Hello, World!')"
+                    }
+                ]
+            };
+            dataRef.set(data);
         }
-    } catch (e) {
-        console.error('خطا در بارگذاری داده‌ها:', e);
-        // اگر فایل وجود نداشت، از داده پیش‌فرض استفاده کن
-        data = {
-            title: "ارائه من",
-            cells: [
-                {
-                    type: "text",
-                    content: "این یک متن نمونه است.\nمی‌توانید آن را ویرایش کنید."
-                },
-                {
-                    type: "code",
-                    language: "python",
-                    content: "def hello():\n    print('Hello, World!')"
-                }
-            ]
-        };
-    }
-    renderView();
+        renderView();
+    });
 }
 
 // رندر حالت نمایش
@@ -61,6 +75,24 @@ function renderView() {
             contentView.appendChild(container);
             
             hljs.highlightElement(code);
+        } else if (cell.type === 'image') {
+            const container = document.createElement('div');
+            container.className = 'image-container';
+            
+            if (cell.caption) {
+                const caption = document.createElement('div');
+                caption.className = 'image-caption';
+                caption.textContent = cell.caption;
+                container.appendChild(caption);
+            }
+            
+            const img = document.createElement('img');
+            img.src = cell.content;
+            img.alt = cell.caption || 'تصویر';
+            img.className = 'presentation-image';
+            
+            container.appendChild(img);
+            contentView.appendChild(container);
         }
     });
 }
@@ -80,7 +112,8 @@ function renderEdit() {
         
         const typeLabel = document.createElement('span');
         typeLabel.className = 'cell-type';
-        typeLabel.textContent = cell.type === 'text' ? '📝 متن' : '💻 کد';
+        typeLabel.textContent = cell.type === 'text' ? '📝 متن' : 
+                               cell.type === 'code' ? '💻 کد' : '🖼️ عکس';
         
         const actions = document.createElement('div');
         actions.className = 'cell-actions';
@@ -119,14 +152,46 @@ function renderEdit() {
                 data.cells[index].language = e.target.value;
             };
             cellDiv.appendChild(langInput);
+            
+            const textarea = document.createElement('textarea');
+            textarea.value = cell.content;
+            textarea.oninput = (e) => {
+                data.cells[index].content = e.target.value;
+            };
+            cellDiv.appendChild(textarea);
+        } else if (cell.type === 'text') {
+            const textarea = document.createElement('textarea');
+            textarea.value = cell.content;
+            textarea.oninput = (e) => {
+                data.cells[index].content = e.target.value;
+            };
+            cellDiv.appendChild(textarea);
+        } else if (cell.type === 'image') {
+            const captionInput = document.createElement('input');
+            captionInput.type = 'text';
+            captionInput.value = cell.caption || '';
+            captionInput.placeholder = 'عنوان تصویر (اختیاری)';
+            captionInput.oninput = (e) => {
+                data.cells[index].caption = e.target.value;
+            };
+            cellDiv.appendChild(captionInput);
+            
+            const preview = document.createElement('div');
+            preview.className = 'image-preview';
+            
+            const img = document.createElement('img');
+            img.src = cell.content;
+            img.alt = 'پیش‌نمایش';
+            preview.appendChild(img);
+            
+            const changeBtn = document.createElement('button');
+            changeBtn.className = 'change-image-btn';
+            changeBtn.textContent = '🔄 تغییر عکس';
+            changeBtn.onclick = () => changeImage(index);
+            preview.appendChild(changeBtn);
+            
+            cellDiv.appendChild(preview);
         }
-        
-        const textarea = document.createElement('textarea');
-        textarea.value = cell.content;
-        textarea.oninput = (e) => {
-            data.cells[index].content = e.target.value;
-        };
-        cellDiv.appendChild(textarea);
         
         container.appendChild(cellDiv);
     });
@@ -139,17 +204,7 @@ function addTextCell() {
         content: 'متن جدید'
     });
     renderEdit();
-    
-    setTimeout(() => {
-        const container = document.getElementById('cellsContainer');
-        const cells = container.querySelectorAll('.cell');
-        if (cells.length > 0) {
-            cells[cells.length - 1].scrollIntoView({ 
-                behavior: 'smooth', 
-                block: 'center' 
-            });
-        }
-    }, 100);
+    scrollToLastCell();
 }
 
 // افزودن سلول کد
@@ -160,7 +215,69 @@ function addCodeCell() {
         content: '# کد جدید'
     });
     renderEdit();
+    scrollToLastCell();
+}
+
+// افزودن سلول عکس
+function addImageCell() {
+    const input = document.createElement('input');
+    input.type = 'file';
+    input.accept = 'image/*';
     
+    input.onchange = (e) => {
+        const file = e.target.files[0];
+        if (file) {
+            // بررسی حجم فایل (حداکثر 2 مگابایت)
+            if (file.size > 2 * 1024 * 1024) {
+                alert('⚠️ حجم عکس باید کمتر از 2 مگابایت باشد!');
+                return;
+            }
+            
+            const reader = new FileReader();
+            reader.onload = (event) => {
+                data.cells.push({
+                    type: 'image',
+                    content: event.target.result,
+                    caption: ''
+                });
+                renderEdit();
+                scrollToLastCell();
+            };
+            reader.readAsDataURL(file);
+        }
+    };
+    
+    input.click();
+}
+
+// تغییر عکس
+function changeImage(index) {
+    const input = document.createElement('input');
+    input.type = 'file';
+    input.accept = 'image/*';
+    
+    input.onchange = (e) => {
+        const file = e.target.files[0];
+        if (file) {
+            if (file.size > 2 * 1024 * 1024) {
+                alert('⚠️ حجم عکس باید کمتر از 2 مگابایت باشد!');
+                return;
+            }
+            
+            const reader = new FileReader();
+            reader.onload = (event) => {
+                data.cells[index].content = event.target.result;
+                renderEdit();
+            };
+            reader.readAsDataURL(file);
+        }
+    };
+    
+    input.click();
+}
+
+// اسکرول به آخرین سلول
+function scrollToLastCell() {
     setTimeout(() => {
         const container = document.getElementById('cellsContainer');
         const cells = container.querySelectorAll('.cell');
@@ -206,20 +323,15 @@ function enterEditMode() {
 function saveChanges() {
     data.title = document.getElementById('titleInput').value;
     
-    // دانلود فایل JSON جدید
-    const dataStr = JSON.stringify(data, null, 2);
-    const dataBlob = new Blob([dataStr], { type: 'application/json' });
-    const url = URL.createObjectURL(dataBlob);
-    const link = document.createElement('a');
-    link.href = url;
-    link.download = 'data.json';
-    link.click();
-    
-    alert('✅ تغییرات ذخیره شد!\n\nفایل data.json جدید دانلود شد.\nلطفاً آن را در مخزن GitHub خود آپلود کنید تا تغییرات در همه سیستم‌ها اعمال شود.');
-    
-    document.getElementById('editMode').style.display = 'none';
-    document.getElementById('viewMode').style.display = 'block';
-    renderView();
+    dataRef.set(data).then(() => {
+        alert('✅ تغییرات با موفقیت ذخیره شد!\n\nحالا در تمام سیستم‌ها و مرورگرها قابل مشاهده است.');
+        
+        document.getElementById('editMode').style.display = 'none';
+        document.getElementById('viewMode').style.display = 'block';
+        renderView();
+    }).catch((error) => {
+        alert('❌ خطا در ذخیره‌سازی: ' + error.message);
+    });
 }
 
 // انصراف از ویرایش
@@ -235,9 +347,9 @@ function cancelEdit() {
 document.addEventListener('DOMContentLoaded', () => {
     loadData();
     
-    // اتصال دکمه‌ها با تابع
     const addTextBtn = document.getElementById('addTextBtn');
     const addCodeBtn = document.getElementById('addCodeBtn');
+    const addImageBtn = document.getElementById('addImageBtn');
     
     if (addTextBtn) {
         addTextBtn.addEventListener('click', addTextCell);
@@ -245,5 +357,9 @@ document.addEventListener('DOMContentLoaded', () => {
     
     if (addCodeBtn) {
         addCodeBtn.addEventListener('click', addCodeCell);
+    }
+    
+    if (addImageBtn) {
+        addImageBtn.addEventListener('click', addImageCell);
     }
 });

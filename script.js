@@ -25,6 +25,7 @@ function loadData() {
         if (snapshot.exists()) {
             data = snapshot.val();
         } else {
+            // اگر داده‌ای وجود نداشت، داده پیش‌فرض را ذخیره کن
             data = {
                 title: "ارائه من",
                 cells: [
@@ -75,24 +76,6 @@ function renderView() {
             contentView.appendChild(container);
             
             hljs.highlightElement(code);
-        } else if (cell.type === 'image') {
-            const container = document.createElement('div');
-            container.className = 'image-container';
-            
-            if (cell.caption) {
-                const caption = document.createElement('div');
-                caption.className = 'image-caption';
-                caption.textContent = cell.caption;
-                container.appendChild(caption);
-            }
-            
-            const img = document.createElement('img');
-            img.src = cell.content;
-            img.alt = cell.caption || 'تصویر';
-            img.className = 'presentation-image';
-            
-            container.appendChild(img);
-            contentView.appendChild(container);
         }
     });
 }
@@ -112,8 +95,7 @@ function renderEdit() {
         
         const typeLabel = document.createElement('span');
         typeLabel.className = 'cell-type';
-        typeLabel.textContent = cell.type === 'text' ? '📝 متن' : 
-                               cell.type === 'code' ? '💻 کد' : '🖼️ عکس';
+        typeLabel.textContent = cell.type === 'text' ? '📝 متن' : '💻 کد';
         
         const actions = document.createElement('div');
         actions.className = 'cell-actions';
@@ -152,46 +134,14 @@ function renderEdit() {
                 data.cells[index].language = e.target.value;
             };
             cellDiv.appendChild(langInput);
-            
-            const textarea = document.createElement('textarea');
-            textarea.value = cell.content;
-            textarea.oninput = (e) => {
-                data.cells[index].content = e.target.value;
-            };
-            cellDiv.appendChild(textarea);
-        } else if (cell.type === 'text') {
-            const textarea = document.createElement('textarea');
-            textarea.value = cell.content;
-            textarea.oninput = (e) => {
-                data.cells[index].content = e.target.value;
-            };
-            cellDiv.appendChild(textarea);
-        } else if (cell.type === 'image') {
-            const captionInput = document.createElement('input');
-            captionInput.type = 'text';
-            captionInput.value = cell.caption || '';
-            captionInput.placeholder = 'عنوان تصویر (اختیاری)';
-            captionInput.oninput = (e) => {
-                data.cells[index].caption = e.target.value;
-            };
-            cellDiv.appendChild(captionInput);
-            
-            const preview = document.createElement('div');
-            preview.className = 'image-preview';
-            
-            const img = document.createElement('img');
-            img.src = cell.content;
-            img.alt = 'پیش‌نمایش';
-            preview.appendChild(img);
-            
-            const changeBtn = document.createElement('button');
-            changeBtn.className = 'change-image-btn';
-            changeBtn.textContent = '🔄 تغییر عکس';
-            changeBtn.onclick = () => changeImage(index);
-            preview.appendChild(changeBtn);
-            
-            cellDiv.appendChild(preview);
         }
+        
+        const textarea = document.createElement('textarea');
+        textarea.value = cell.content;
+        textarea.oninput = (e) => {
+            data.cells[index].content = e.target.value;
+        };
+        cellDiv.appendChild(textarea);
         
         container.appendChild(cellDiv);
     });
@@ -204,7 +154,17 @@ function addTextCell() {
         content: 'متن جدید'
     });
     renderEdit();
-    scrollToLastCell();
+    
+    setTimeout(() => {
+        const container = document.getElementById('cellsContainer');
+        const cells = container.querySelectorAll('.cell');
+        if (cells.length > 0) {
+            cells[cells.length - 1].scrollIntoView({ 
+                behavior: 'smooth', 
+                block: 'center' 
+            });
+        }
+    }, 100);
 }
 
 // افزودن سلول کد
@@ -215,69 +175,7 @@ function addCodeCell() {
         content: '# کد جدید'
     });
     renderEdit();
-    scrollToLastCell();
-}
-
-// افزودن سلول عکس
-function addImageCell() {
-    const input = document.createElement('input');
-    input.type = 'file';
-    input.accept = 'image/*';
     
-    input.onchange = (e) => {
-        const file = e.target.files[0];
-        if (file) {
-            // بررسی حجم فایل (حداکثر 2 مگابایت)
-            if (file.size > 2 * 1024 * 1024) {
-                alert('⚠️ حجم عکس باید کمتر از 2 مگابایت باشد!');
-                return;
-            }
-            
-            const reader = new FileReader();
-            reader.onload = (event) => {
-                data.cells.push({
-                    type: 'image',
-                    content: event.target.result,
-                    caption: ''
-                });
-                renderEdit();
-                scrollToLastCell();
-            };
-            reader.readAsDataURL(file);
-        }
-    };
-    
-    input.click();
-}
-
-// تغییر عکس
-function changeImage(index) {
-    const input = document.createElement('input');
-    input.type = 'file';
-    input.accept = 'image/*';
-    
-    input.onchange = (e) => {
-        const file = e.target.files[0];
-        if (file) {
-            if (file.size > 2 * 1024 * 1024) {
-                alert('⚠️ حجم عکس باید کمتر از 2 مگابایت باشد!');
-                return;
-            }
-            
-            const reader = new FileReader();
-            reader.onload = (event) => {
-                data.cells[index].content = event.target.result;
-                renderEdit();
-            };
-            reader.readAsDataURL(file);
-        }
-    };
-    
-    input.click();
-}
-
-// اسکرول به آخرین سلول
-function scrollToLastCell() {
     setTimeout(() => {
         const container = document.getElementById('cellsContainer');
         const cells = container.querySelectorAll('.cell');
@@ -319,10 +217,11 @@ function enterEditMode() {
     }
 }
 
-// ذخیره تغییرات
+// ذخیره تغییرات - حالا خودکار است!
 function saveChanges() {
     data.title = document.getElementById('titleInput').value;
     
+    // ذخیره در Firebase - کاملاً خودکار!
     dataRef.set(data).then(() => {
         alert('✅ تغییرات با موفقیت ذخیره شد!\n\nحالا در تمام سیستم‌ها و مرورگرها قابل مشاهده است.');
         
@@ -347,9 +246,9 @@ function cancelEdit() {
 document.addEventListener('DOMContentLoaded', () => {
     loadData();
     
+    // اتصال دکمه‌ها
     const addTextBtn = document.getElementById('addTextBtn');
     const addCodeBtn = document.getElementById('addCodeBtn');
-    const addImageBtn = document.getElementById('addImageBtn');
     
     if (addTextBtn) {
         addTextBtn.addEventListener('click', addTextCell);
@@ -357,9 +256,5 @@ document.addEventListener('DOMContentLoaded', () => {
     
     if (addCodeBtn) {
         addCodeBtn.addEventListener('click', addCodeCell);
-    }
-    
-    if (addImageBtn) {
-        addImageBtn.addEventListener('click', addImageCell);
     }
 });

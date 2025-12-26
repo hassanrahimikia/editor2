@@ -75,6 +75,61 @@ pre code {
     text-align: left !important;
 }
 
+/* استایل عکس‌ها در حالت نمایش */
+.image-container {
+    margin: 30px 0;
+    text-align: center;
+}
+
+.image-caption {
+    font-size: 1.1em;
+    color: #667eea;
+    font-weight: bold;
+    margin-bottom: 15px;
+}
+
+.presentation-image {
+    max-width: 100%;
+    height: auto;
+    border-radius: 10px;
+    box-shadow: 0 4px 15px rgba(0,0,0,0.2);
+    transition: transform 0.3s ease;
+}
+
+.presentation-image:hover {
+    transform: scale(1.02);
+}
+
+/* استایل عکس‌ها در حالت ویرایش */
+.image-preview {
+    margin-top: 15px;
+    text-align: center;
+}
+
+.image-preview img {
+    max-width: 100%;
+    max-height: 300px;
+    border-radius: 8px;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+    margin-bottom: 10px;
+}
+
+.change-image-btn {
+    padding: 8px 20px;
+    background: #667eea;
+    color: white;
+    border: none;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 0.95em;
+    transition: all 0.3s;
+}
+
+.change-image-btn:hover {
+    background: #5568d3;
+    transform: translateY(-2px);
+}
+
 .edit-btn, .add-btn, .save-btn, .cancel-btn {
     padding: 12px 30px;
     font-size: 1.1em;
@@ -127,10 +182,12 @@ pre code {
     display: flex;
     gap: 15px;
     margin-top: 20px;
+    flex-wrap: wrap;
 }
 
 .add-btn {
     flex: 1;
+    min-width: 150px;
     background: #10b981;
     color: white;
 }

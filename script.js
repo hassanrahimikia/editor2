@@ -1,49 +1,34 @@
-// پیکربندی Firebase - جایگزین کنید با اطلاعات پروژه خودتان
-const firebaseConfig = {
-    apiKey: "YOUR_API_KEY",
-    authDomain: "YOUR_PROJECT_ID.firebaseapp.com",
-    databaseURL: "https://YOUR_PROJECT_ID-default-rtdb.firebaseio.com",
-    projectId: "YOUR_PROJECT_ID",
-    storageBucket: "YOUR_PROJECT_ID.appspot.com",
-    messagingSenderId: "YOUR_SENDER_ID",
-    appId: "YOUR_APP_ID"
-};
-
-// راه‌اندازی Firebase
-firebase.initializeApp(firebaseConfig);
-const database = firebase.database();
-const dataRef = database.ref('presentation');
-
 let data = {
     title: "ارائه من",
     cells: []
 };
 
-// بارگذاری داده‌ها از Firebase
-function loadData() {
-    dataRef.once('value', (snapshot) => {
-        if (snapshot.exists()) {
-            data = snapshot.val();
-        } else {
-            // اگر داده‌ای وجود نداشت، داده پیش‌فرض را ذخیره کن
-            data = {
-                title: "ارائه من",
-                cells: [
-                    {
-                        type: "text",
-                        content: "این یک متن نمونه است.\nمی‌توانید آن را ویرایش کنید."
-                    },
-                    {
-                        type: "code",
-                        language: "python",
-                        content: "def hello():\n    print('Hello, World!')"
-                    }
-                ]
-            };
-            dataRef.set(data);
+// بارگذاری داده‌ها از فایل JSON
+async function loadData() {
+    try {
+        const response = await fetch('data.json');
+        if (response.ok) {
+            data = await response.json();
         }
-        renderView();
-    });
+    } catch (e) {
+        console.error('خطا در بارگذاری داده‌ها:', e);
+        // اگر فایل وجود نداشت، از داده پیش‌فرض استفاده کن
+        data = {
+            title: "ارائه من",
+            cells: [
+                {
+                    type: "text",
+                    content: "این یک متن نمونه است.\nمی‌توانید آن را ویرایش کنید."
+                },
+                {
+                    type: "code",
+                    language: "python",
+                    content: "def hello():\n    print('Hello, World!')"
+                }
+            ]
+        };
+    }
+    renderView();
 }
 
 // رندر حالت نمایش
@@ -217,20 +202,24 @@ function enterEditMode() {
     }
 }
 
-// ذخیره تغییرات - حالا خودکار است!
+// ذخیره تغییرات
 function saveChanges() {
     data.title = document.getElementById('titleInput').value;
     
-    // ذخیره در Firebase - کاملاً خودکار!
-    dataRef.set(data).then(() => {
-        alert('✅ تغییرات با موفقیت ذخیره شد!\n\nحالا در تمام سیستم‌ها و مرورگرها قابل مشاهده است.');
-        
-        document.getElementById('editMode').style.display = 'none';
-        document.getElementById('viewMode').style.display = 'block';
-        renderView();
-    }).catch((error) => {
-        alert('❌ خطا در ذخیره‌سازی: ' + error.message);
-    });
+    // دانلود فایل JSON جدید
+    const dataStr = JSON.stringify(data, null, 2);
+    const dataBlob = new Blob([dataStr], { type: 'application/json' });
+    const url = URL.createObjectURL(dataBlob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = 'data.json';
+    link.click();
+    
+    alert('✅ تغییرات ذخیره شد!\n\nفایل data.json جدید دانلود شد.\nلطفاً آن را در مخزن GitHub خود آپلود کنید تا تغییرات در همه سیستم‌ها اعمال شود.');
+    
+    document.getElementById('editMode').style.display = 'none';
+    document.getElementById('viewMode').style.display = 'block';
+    renderView();
 }
 
 // انصراف از ویرایش
@@ -246,7 +235,7 @@ function cancelEdit() {
 document.addEventListener('DOMContentLoaded', () => {
     loadData();
     
-    // اتصال دکمه‌ها
+    // اتصال دکمه‌ها با تابع
     const addTextBtn = document.getElementById('addTextBtn');
     const addCodeBtn = document.getElementById('addCodeBtn');
     
